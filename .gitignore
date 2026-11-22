@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+build/
+results/*
+!results/.gitkeep
+!results/fig/
+results/fig/*
+!results/fig/.gitkeep
+video/
+*.mp4
+runs/

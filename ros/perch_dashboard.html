@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PerchPilot | Giám sát</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0c1420; --panel: #141f2d; --border: #28384c; --grid: #2b3d51;
+  --text: #eef5ff; --muted: #a6b9cc; --cyan: #5ee1ed; --gold: #ffc578;
+  --green: #84e2a8; --red: #ff9899; --violet: #c7b3ff;
+  --mono: ui-monospace, "DejaVu Sans Mono", monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+main { width: min(100%, 1520px); padding: 24px 28px 26px; margin: auto; }
+h1, h2, h3, p, dl, dd { margin: 0; }
+h1 { font-size: 27px; letter-spacing: -.03em; }
+h2 { font-size: 16px; }
+h3 { font-size: 13px; }
+p, dt, .muted { color: var(--muted); }
+.header, .head, .status, .controls, .phases, .legend { display: flex; align-items: center; gap: 12px; }
+.header, .head { justify-content: space-between; }
+.header { margin-bottom: 16px; }
+.status { flex-wrap: wrap; justify-content: end; font: 13px var(--mono); }
+.mode { color: var(--cyan); }
+.time { min-width: 78px; text-align: right; }
+.panel, .controls, .chart { border: 1px solid var(--border); background: var(--panel); border-radius: 10px; }
+.controls { margin-bottom: 12px; padding: 9px 12px; }
+button { border-radius: 6px; background: #203247; border: 1px solid #3b526a; color: var(--text); padding: 5px 12px; font: inherit; cursor: pointer; white-space: nowrap; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+#play { min-width: 91px; }
+input[type=range] { flex: 1; min-width: 55px; accent-color: var(--cyan); margin: 0; }
+#range-text { min-width: 125px; text-align: right; font: 12px var(--mono); }
+.phases { gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
+.phase { font: 12px var(--mono); border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px; color: var(--muted); }
+.phase.seen { color: var(--phase); }
+.phase.current { color: var(--phase); background: color-mix(in srgb, var(--phase) 14%, var(--bg)); border-color: var(--phase); font-weight: bold; }
+.overview { display: grid; grid-template-columns: 1.54fr 1fr 1.12fr; gap: 12px; align-items: stretch; }
+.overview:has(#truth[hidden]) { grid-template-columns: 1.54fr 1fr; }
+.panel { padding: 12px 14px; min-width: 0; }
+.panel .head { margin-bottom: 8px; }
+.badge { border: 1px solid currentColor; border-radius: 5px; padding: 2px 7px; font: bold 12px var(--mono); white-space: nowrap; }
+.views { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.view { min-width: 0; }
+.view h3 { color: var(--muted); }
+canvas { width: 100%; display: block; }
+.view canvas { height: 123px; }
+#pose-text, #tag, #qmeas, .small { font-size: 12px; }
+#pose-text { min-height: 1.5em; }
+#tag { display: grid; grid-template-columns: 1.3fr .65fr 1fr; gap: 7px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+dd { font: 600 14px/1.5 var(--mono); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
+#q2 { margin-top: 9px; }
+#qwhy { min-height: 1.45em; overflow-wrap: anywhere; }
+#qmeas, #qpoints { margin-top: 5px; font-family: var(--mono); }
+#qpoints { font-size: 11px; line-height: 1.6; color: var(--muted); }
+#touch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+#outcome { min-height: 1.5em; margin: 5px 0; }
+#batch { display: grid; grid-template-columns: .65fr 1fr 1.4fr; gap: 7px; margin-top: 6px; border-top: 1px solid var(--border); padding-top: 8px; }
+#batch dt { font-size: 12px; }
+#metric { margin-top: 2px; }
+.trends { margin-top: 13px; }
+.trends > .head { margin-bottom: 7px; }
+.charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.chart { padding: 8px 11px 5px; min-width: 0; }
+.chart.wide { grid-column: span 2; }
+.chart canvas { height: 119px; }
+.legend { flex-wrap: wrap; gap: 2px 11px; min-height: 17px; font: 11px var(--mono); color: var(--muted); }
+.legend i { width: 12px; height: 2px; display: inline-block; background: currentColor; margin-right: 4px; vertical-align: 3px; }
+.good { color: var(--green); }
+.bad { color: var(--red); }
+.probe { color: var(--gold); }
+@media (max-width: 1070px) {
+  .overview { grid-template-columns: 1.4fr 1fr; }
+  #truth { grid-column: 1 / -1; }
+}
+@media (max-width: 690px) {
+  main { padding: 14px; }
+  .header { align-items: start; }
+  .status { display: grid; text-align: right; gap: 3px; font-size: 11px; }
+  .overview, .overview:has(#truth[hidden]), .charts { grid-template-columns: 1fr; }
+  .chart.wide { grid-column: auto; }
+  .controls { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="header">
+    <div><h1>PerchPilot</h1><p>Giám sát bay và tiếp xúc</p></div>
+    <div class="status">
+      <span id="mode" class="mode">ĐANG KẾT NỐI</span>
+      <span id="source">—</span><span id="clock" class="time">— s</span>
+    </div>
+  </header>
+  <div class="controls" id="controls" hidden>
+    <button id="play">Tạm dừng</button><button id="restart">Về đầu</button>
+    <input id="seek" type="range" aria-label="Thời điểm phát lại" min="0" max="1" step="0.001" value="0">
+    <span id="range-text">—</span>
+  </div>
+  <div id="phases" class="phases" aria-label="Pha bay"></div>
+  <div class="overview">
+    <section class="panel">
+      <div class="head"><h2>Vị trí so với tâm tấm</h2><span class="muted small">EKF2 + tag/KF · ENU</span></div>
+      <div class="views">
+        <div class="view"><h3>Nhìn từ trên · Đông / Bắc</h3><canvas id="top" aria-label="Chiếu vị trí theo Đông và Bắc"></canvas></div>
+        <div class="view"><h3>Nhìn từ bên · Đông / Cao</h3><canvas id="side" aria-label="Chiếu vị trí theo Đông và Cao"></canvas></div>
+      </div>
+      <p id="pose-text">Chờ dữ liệu vị trí</p>
+    </section>
+    <section class="panel">
+      <div class="head"><h2>Theo dõi tag</h2></div>
+      <dl id="tag">
+        <div><dt>Tag visible</dt><dd id="visibility">—</dd></div>
+        <div><dt>ρ</dt><dd id="rho">—</dd></div>
+        <div><dt>Mất tag</dt><dd id="loss">—</dd></div>
+      </dl>
+      <div id="q2">
+        <div class="head"><h2>Quyết định Q2</h2><span id="decision" class="badge muted">—</span></div>
+        <p id="qwhy">—</p><div id="qmeas" hidden></div><div id="qpoints" hidden></div>
+      </div>
+    </section>
+    <section id="truth" class="panel" hidden>
+      <div class="head"><h2>truth (chỉ để chấm)</h2><span id="touch-pass" class="badge muted">CHỜ CHẠM</span></div>
+      <dl id="touch">
+        <div><dt>v<sub>n</sub> · m/s</dt><dd id="vn">—</dd></div>
+        <div><dt>v<sub>t</sub> · m/s</dt><dd id="vt">—</dd></div>
+        <div><dt>Lệch góc</dt><dd id="align">—</dd></div>
+      </dl>
+      <p id="outcome" class="small"></p>
+      <h3>Kết quả lô</h3>
+      <dl id="batch">
+        <div><dt>Số lượt</dt><dd id="trials">—</dd></div>
+        <div><dt>Chạm đạt</dt><dd id="touch-count">—</dd></div>
+        <div><dt>False-safe</dt><dd id="false-safe">—</dd></div>
+      </dl>
+      <p id="metric" class="small"></p>
+    </section>
+  </div>
+  <section class="trends">
+    <div class="head"><h2>Telemetry · 10 giây gần nhất</h2><span class="muted small">Thời gian tương đối · s</span></div>
+    <div id="charts" class="charts"></div>
+  </section>
+</main>
+<script>
+"use strict";
+const el = id => document.getElementById(id);
+const set = (id, text) => { el(id).textContent = text; };
+const fixed = (value, digits, unit = "") => Number.isFinite(value) ? value.toFixed(digits) + unit : "—";
+const palette = {
+  APPROACH: "#86c3ff", PERCH: "#5ee1ed", VERIFY: "#ffc578", REST: "#84e2a8",
+  DEPART: "#c7b3ff", ABORT: "#ff9899", DONE: "#84e2a8", WAIT: "#a6b9cc"
+};
+for (const [name, color] of Object.entries(palette)) {
+  const item = document.createElement("span");
+  item.className = "phase";
+  item.id = "phase-" + name;
+  item.textContent = name;
+  item.style.setProperty("--phase", color);
+  el("phases").append(item);
+}
+const cyan = palette.PERCH, gold = palette.VERIFY, green = palette.REST, violet = palette.DEPART;
+const grid = "#2b3d51", muted = "#a6b9cc";
+const history = {commands: [], sensors: [], b4e: []};
+const charts = [
+  {title: "Thrust lệnh · chuẩn hoá", source: "commands", lines: [[1, cyan, "thrust"]], range: [0, 1]},
+  {title: "Rate lệnh FRD · rad/s", source: "commands", lines: [[2, cyan, "roll"], [3, green, "pitch"], [4, violet, "yaw"]], range: [-.25, .25]},
+  {title: "Load cell · N", source: "sensors", lines: [[1, green, "lực pháp tuyến"]], range: [0, 1]},
+  {title: "slip_disp · mm/mẫu", source: "sensors", lines: [[2, cyan, "u"], [3, violet, "w"]], range: [-.1, .1]},
+  {title: "|Σ slip| · 80 mẫu · mm", source: "b4e", lines: [[1, cyan, "|Σ slip|"], [2, gold, "ngưỡng B4e", true]], range: [0, 1], wide: true}
+];
+for (const chart of charts) {
+  const card = document.createElement("div");
+  card.className = chart.wide ? "chart wide" : "chart";
+  card.innerHTML = `<h3>${chart.title}</h3><canvas aria-label="${chart.title}"></canvas><div class="legend">${chart.lines.map(
+    ([, color, label]) => `<span><i style="color:${color}"></i>${label}</span>`).join("")}</div>`;
+  chart.canvas = card.querySelector("canvas");
+  el("charts").append(card);
+}
+
+function viewport(canvas) {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.font = '11px ui-monospace, monospace';
+  return [ctx, w, h];
+}
+function segment(ctx, x1, y1, x2, y2, color) {
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+function circle(ctx, x, y, r, color) {
+  ctx.beginPath();
+  ctx.fillStyle = color;
+  ctx.arc(x, y, r, 0, 2 * Math.PI);
+  ctx.fill();
+}
+function drawPose(canvas, pose, axis) {
+  const [ctx, w, h] = viewport(canvas);
+  const x0 = w / 2, y0 = (h - 12) / 2;
+  const east = pose?.enu[0], vertical = pose?.enu[axis];
+  const extent = Math.max(Math.abs(east ?? 0) / (w / 2 - 14), Math.abs(vertical ?? 0) / (y0 - 10));
+  const step = [0.25, 0.5, 1, 2, 5, 10, 25].find(n => n / 32 >= extent) ?? 50;
+  const scale = extent ? Math.min(32 / step, 1 / extent) : 32 / step;
+  const spacing = scale * step;
+  if (spacing > 8) {
+    for (let x = x0 % spacing; x < w; x += spacing) segment(ctx, x, 3, x, h - 16, grid);
+    for (let y = y0 % spacing; y < h - 16; y += spacing) segment(ctx, 0, y, w, y, grid);
+  }
+  segment(ctx, 0, y0, w, y0, "#4c6378");
+  segment(ctx, x0, 3, x0, h - 16, "#4c6378");
+  ctx.fillStyle = gold;
+  ctx.fillRect(x0 - 3, y0 - 3, 6, 6);
+  if (pose) {
+    const x = x0 + east * scale, y = y0 - vertical * scale;
+    segment(ctx, x0, y0, x, y, cyan);
+    circle(ctx, x, y, 4.5, cyan);
+  }
+  ctx.fillStyle = muted;
+  ctx.textAlign = "left";
+  ctx.fillText(`${step} m / ô`, 2, h - 2);
+  ctx.textAlign = "right";
+  ctx.fillText("■ Tấm   ● Drone", w - 2, h - 2);
+}
+function drawChart(chart, now) {
+  const [ctx, w, h] = viewport(chart.canvas);
+  const left = 40, right = w - 10, top = 10, bottom = h - 20;
+  const values = history[chart.source];
+  let [lo, hi] = chart.range, hasData = false;
+  for (const point of values) for (const [col] of chart.lines) {
+    if (!Number.isFinite(point[col])) continue;
+    hasData = true;
+    lo = Math.min(lo, point[col]);
+    hi = Math.max(hi, point[col]);
+  }
+  const x = t => left + (t - now + 10) / 10 * (right - left);
+  const y = v => bottom - (v - lo) / (hi - lo) * (bottom - top);
+  ctx.fillStyle = muted;
+  for (let i = 0; i <= 2; i++) {
+    const v = lo + (hi - lo) * i / 2;
+    segment(ctx, left, y(v), right, y(v), grid);
+    ctx.textAlign = "right";
+    ctx.fillText(v.toLocaleString("en-US", {maximumFractionDigits: 2}), left - 5, y(v) + 4);
+  }
+  for (let sec = -10; sec <= 0; sec += 2) {
+    const px = x(now + sec);
+    segment(ctx, px, top, px, bottom, grid);
+    ctx.textAlign = "center";
+    ctx.fillText(String(sec), px, h - 5);
+  }
+  if (!hasData) {
+    ctx.fillStyle = muted;
+    ctx.fillText("Chưa có mẫu trong cửa sổ", (left + right) / 2, (top + bottom) / 2);
+    return;
+  }
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left - 2, top - 2, right - left + 4, bottom - top + 4);
+  ctx.clip();
+  for (const [col, color, , step] of chart.lines) {
+    let last = null;
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.35;
+    ctx.setLineDash(step ? [5, 3] : []);
+    for (const point of values) {
+      const v = point[col], t = point[0];
+      if (!Number.isFinite(v)) { last = null; continue; }
+      if (!last || t - last[0] > 0.22) ctx.moveTo(x(t), y(v));
+      else {
+        if (step) ctx.lineTo(x(t), y(last[col]));
+        ctx.lineTo(x(t), y(v));
+      }
+      last = point;
+    }
+    ctx.stroke();
+    if (last) circle(ctx, x(last[0]), y(last[col]), 2, color);
+  }
+  ctx.restore();
+}
+
+function renderTruth(truth) {
+  el("truth").hidden = truth == null;
+  if (!truth) return;
+  const touch = truth.touch ?? {};
+  set("vn", fixed(touch.vn_mps, 3));
+  set("vt", fixed(touch.vt_mps, 3));
+  set("align", fixed(touch.align_deg, 1, "°"));
+  const ok = truth.touch_pass;
+  set("touch-pass", ok === true ? "PASS" : ok === false ? "FAIL" : "CHỜ CHẠM");
+  el("touch-pass").className = "badge " + (ok === true ? "good" : ok === false ? "bad" : "muted");
+  const outcomes = {rest: "Đã ghi nhận REST", q2_abort: "Q2 ABORT", self_abort: "Q2 SELF_ABORT",
+    crash: "Va chạm lỗi", abort: "ABORT", timeout: "Hết thời gian"};
+  const complete = meta.mode === "replay" ? "✓ Kết quả lưu · chu kỳ trọn" : "✓ Chu kỳ trọn · đã tái arm và rời tấm";
+  set("outcome", truth.cycle_complete ? complete :
+    (outcomes[truth.outcome] ?? truth.outcome ?? ""));
+  const batch = truth.batch;
+  set("trials", batch?.trials ?? "—");
+  set("touch-count", batch ? `${batch.touch_pass} / ${batch.trials}` : "—");
+  set("false-safe", batch ? `${batch.false_safe ?? "?"} / ${batch.off}` : "—");
+  set("metric", batch ? (batch.metric === "v1.2" ? "False-safe v1.2 · theo lệnh OFF" : "False-safe · sau disarm") : "");
+}
+
+let frame, dirty = false;
+function render() {
+  if (!frame || !dirty) return;
+  dirty = false;
+  const s = frame;
+  document.body.dataset.time = s.t;
+  document.body.dataset.phase = s.phase ?? "";
+  set("source", s.source + (s.trial !== null ? ` · Lượt ${s.trial}` : ""));
+  set("clock", fixed(s.t, 2, " s"));
+  set("range-text", `${fixed(s.t, 2)} / ${fixed(meta.duration, 2)} s`);
+  if (!seeking) el("seek").value = s.t;
+  for (const name of Object.keys(palette)) {
+    el("phase-" + name).classList.toggle("seen", s.phases.includes(name));
+    el("phase-" + name).classList.toggle("current", s.phase === name);
+  }
+  const visible = s.tag_visible;
+  el("visibility").replaceChildren();
+  if (visible !== null) {
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    el("visibility").append(dot);
+  }
+  el("visibility").className = visible === true ? "good" : visible === false ? "bad" : "muted";
+  el("visibility").append(visible === true ? "Thấy" : visible === false ? "Mất" : "—");
+  set("rho", fixed(s.rho, 3));
+  set("loss", fixed(s.loss, 2, " s"));
+
+  const q2 = s.q2 ?? {};
+  const point = q2.decision ? {...q2.points?.at(-1), ...q2} : (s.last_point ?? {});
+  const decision = q2.decision === "SELF_ABORT" ? "ABORT" : q2.decision ?? (s.phase === "VERIFY" ? "DÒ TIẾP" : "—");
+  set("decision", decision);
+  el("decision").className = "badge " + ({OFF: "good", ABORT: "bad", "DÒ TIẾP": "probe"}[decision] ?? "muted");
+  set("qwhy", q2.why ?? (s.phase === "VERIFY" ?
+    (s.macro ? `Đang thực hiện ${s.macro}` : "Đang xác minh tiếp xúc") : "—"));
+  const measures = [Number.isFinite(point.p_hold) ? `p_hold ${fixed(point.p_hold, 3)}` : "",
+    Number.isFinite(point.p_slip) ? `p_slip ${fixed(point.p_slip, 3)}` : ""].filter(Boolean);
+  el("qmeas").hidden = !measures.length;
+  set("qmeas", measures.join(" · "));
+  const points = q2.points ?? (s.last_point ? [s.last_point] : []);
+  const b4e = points.filter(p => Number.isFinite(p.slip_mm) && Number.isFinite(s.thresholds[p.macro]));
+  el("qpoints").hidden = !b4e.length;
+  set("qpoints", b4e.map(p => {
+    const limit = s.thresholds[p.macro];
+    return `${p.macro} ${fixed(p.slip_mm, 2)} ${p.slip_mm < limit ? "<" : "≥"} ${fixed(limit, 2)} mm`;
+  }).join(" · "));
+
+  renderTruth(s.truth);
+  drawPose(el("top"), s.pose, 1);
+  drawPose(el("side"), s.pose, 2);
+  set("pose-text", s.pose ? s.pose.enu.map((v, i) => ["ΔĐ ", "ΔB ", "ΔC "][i] + fixed(v, 2, " m")).join("  ·  ") +
+      (s.t - s.pose.t > 0.25 ? `  ·  mẫu cuối ${fixed(s.pose.t, 2, " s")}` : "") : "Chờ dữ liệu vị trí");
+  charts.forEach(chart => drawChart(chart, s.t));
+}
+
+let stream, paused = false, seeking = false, meta = {};
+function connect(start = 0, pause = false) {
+  if (stream) stream.close();
+  for (const key of Object.keys(history)) history[key] = [];
+  paused = pause;
+  el("play").textContent = paused ? "Phát" : "Tạm dừng";
+  stream = new EventSource(`/events?start=${start}&pause=${pause ? 1 : 0}`);
+  stream.addEventListener("meta", event => {
+    meta = JSON.parse(event.data);
+    el("controls").hidden = meta.mode !== "replay";
+    el("seek").max = meta.duration ?? 1;
+    set("mode", meta.mode === "live" ? "LIVE · ROS 2" : `REPLAY · ${meta.speed}×`);
+  });
+  stream.onmessage = event => {
+    const current = JSON.parse(event.data);
+    for (const key of Object.keys(history)) {
+      const samples = history[key];
+      samples.push(...current.series[key]);
+      let first = 0;
+      while (first < samples.length && samples[first][0] < current.t - 10) first++;
+      if (first) samples.splice(0, first);
+    }
+    frame = current;
+    dirty = true;
+    requestAnimationFrame(render);
+  };
+  stream.addEventListener("end", () => {
+    stream.close();
+    paused = true;
+    el("play").textContent = "Phát";
+  });
+  stream.onerror = () => {
+    set("mode", "MẤT KẾT NỐI");
+    for (const key of Object.keys(history)) history[key] = [];
+  };
+}
+el("seek").addEventListener("input", event => {
+  if (!seeking) { seeking = true; stream.close(); }
+  const t = Number(event.target.value);
+  set("range-text", `${fixed(t, 2)} / ${fixed(meta.duration, 2)} s`);
+});
+el("seek").addEventListener("change", event => {
+  seeking = false;
+  connect(Number(event.target.value), true);
+});
+el("restart").onclick = () => connect();
+el("play").onclick = () => {
+  const next = frame?.t ?? 0;
+  connect(paused && next >= meta.duration ? 0 : next, !paused);
+};
+window.addEventListener("resize", () => { dirty = true; requestAnimationFrame(render); });
+const initial = new URLSearchParams(location.search).get("at");
+const at = Number(initial);
+connect(Number.isFinite(at) && at >= 0 ? at : 0, initial !== null);
+</script>
+</body>
+</html>

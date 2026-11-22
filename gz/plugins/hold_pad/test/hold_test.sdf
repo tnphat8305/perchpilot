@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdf version="1.9">
+  <world name="hold_test">
+    <gravity>0 0 -9.81</gravity>
+    <physics name="hold_test" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+
+    <model name="perch_cart">
+      <static>true</static>
+      <link name="plate">
+        <pose>0 0 1.5 0 -1.134464014 0</pose>
+        <collision name="plate_surface">
+          <geometry><box><size>0.45 0.45 0.02</size></box></geometry>
+        </collision>
+        <visual name="plate_visual">
+          <geometry><box><size>0.45 0.45 0.02</size></box></geometry>
+        </visual>
+      </link>
+      <plugin filename="libHoldPad.so" name="perchpilot::HoldPad">
+        <drone_model>hold_box</drone_model>
+        <drone_link>base_link</drone_link>
+        <mu>0.9</mu>
+        <f_hold_n>58.86</f_hold_n>
+      </plugin>
+    </model>
+
+    <model name="hold_box">
+      <!-- Rơi tự do tới ngưỡng 1 cm ở t ≈ 0,10 s, |v_n| ≈ 0,41 m/s. -->
+      <pose>-0.05437847 0 1.59598910 0 -1.134464014 0</pose>
+      <link name="base_link">
+        <inertial>
+          <mass>2</mass>
+          <inertia><ixx>0.0032</ixx><iyy>0.0032</iyy><izz>0.00333</izz></inertia>
+        </inertial>
+        <!-- Mặt dưới cách điểm đế ảo 2 mm. -->
+        <collision name="box_collision">
+          <geometry><box><size>0.1 0.1 0.096</size></box></geometry>
+        </collision>
+        <visual name="box_visual">
+          <geometry><box><size>0.1 0.1 0.096</size></box></geometry>
+        </visual>
+      </link>
+      <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+        <publish_link_pose>false</publish_link_pose>
+        <publish_model_pose>true</publish_model_pose>
+        <update_frequency>-1</update_frequency>
+      </plugin>
+    </model>
+  </world>
+</sdf>
