@@ -17,6 +17,8 @@ Nhãn trạng thái dùng trong README: **ĐÃ CHẠY**, **CHƯA XONG**.
 
 Mọi lệnh dưới đây chạy ở thư mục gốc của repo.
 
+Node điều khiển viết bằng Rust (`rs/`): hướng dẫn build, xuất trọng số, chạy và kiểm chứng ở mục [Node Rust](ros/README_perch_node.md#node-rust).
+
 ## 2. Phần tự làm và phần dùng sẵn
 
 | Tự làm (trong repo này) | Dùng sẵn |

@@ -12,6 +12,18 @@ fi
 cfg=$("$python" "$here/ros/eval_node.py" "$@" --check-config)
 policy=${cfg%%$'\n'*}
 truth_dir=${cfg#*$'\n'}
+export PERCH_NODE_IMPL=${PERCH_NODE_IMPL:-python}
+case "$PERCH_NODE_IMPL" in
+  python) perch_node=("$python" "$here/ros/perch_node.py") ;;
+  rust)
+    perch_node=("$here/rs/target/release/perch_node")
+    if [[ ! -x ${perch_node[0]} || ! -f $policy/policy.rust.json ]]; then
+      echo 'Build the Rust node and export the C1 policy weights first (ros/README_perch_node.md).' >&2
+      exit 1
+    fi
+    ;;
+  *) echo 'PERCH_NODE_IMPL must be rust or python.' >&2; exit 1 ;;
+esac
 # PX4 roll/pitch airmode: keeps rate tracking at low collective thrust, as the GPU sim assumes
 # (MC_AIRMODE=0 gives no torque at thrust 0 and the policy's thrust-cut + pitch command does nothing).
 airmode=${PERCH_AIRMODE:-1}
@@ -97,7 +109,7 @@ session() {
   export PERCH_EFFECTIVE_NODE_ARGS="--thrust-model x500_perch_gz --pad-offset 0.227 --px4-param MC_AIRMODE=$airmode ${node_main[*]} ${node_extra[*]}"
   "$bridge_dir/parameter_bridge" '/perch/hold_cmd@std_msgs/msg/Float64]gz.msgs.Double' 9>&- &
   local bridge_pid=$!
-  "$python" "$here/ros/perch_node.py" --run "$policy" --eval-mode \
+  "${perch_node[@]}" --run "$policy" --eval-mode \
     --thrust-model x500_perch_gz --pad-offset 0.227 --px4-param "MC_AIRMODE=$airmode" \
     --tick-log "$truth_dir/node_ticks.jsonl" --q2-log "$truth_dir/q2_samples.jsonl" \
     "${node_main[@]}" "${node_extra[@]}" 9>&- &

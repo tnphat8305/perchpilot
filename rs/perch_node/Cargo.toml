@@ -1,0 +1,22 @@
+[package]
+name = "perch_node"
+version = "0.1.0"
+edition.workspace = true
+default-run = "perch_node"
+
+[[bin]]
+name = "perch_node"
+path = "src/main.rs"
+required-features = ["ros"]
+
+[features]
+ros = ["dep:r2r", "dep:futures", "dep:clap", "dep:ctrlc"]
+
+[dependencies]
+perch_core = { path = "../perch_core" }
+serde.workspace = true
+serde_json.workspace = true
+clap = { version = "4", features = ["derive"], optional = true }
+ctrlc = { version = "3", features = ["termination"], optional = true }
+futures = { version = "0.3", optional = true }
+r2r = { version = "0.9.7", optional = true }

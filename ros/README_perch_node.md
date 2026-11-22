@@ -146,7 +146,7 @@ PERCH_RUN=<export_dir> PERCH_CKPT=/home/sup/data/perchpilot/runs/g1_state_ppo/ck
 
 `/usr/bin/python3` + numpy cho kết quả tương tự. Jitter tăng khi máy bận: khi chạy kèm `ros2 topic echo`, p95 lên 5 ms.
 
-**Gazebo headless ĐÃ CHẠY.** Spawn `x500_perch` và nhận `/perch/tag_pose` từ world. Xem [kết quả P5](../../research/codex/PIPE_D1_P5.md).
+**Gazebo headless ĐÃ CHẠY.** Spawn `x500_perch` và nhận `/perch/tag_pose` từ world.
 
 **CHƯA CHẠY.** Vòng kín PX4 SITL, QoS uXRCE, lệnh 31010, arm/disarm, hiệu chỉnh hover và bridge HoldPad trong P5.
 
@@ -298,7 +298,7 @@ Hướng xử lý:
 - HoldPad: cho load cell đo **tổng** lực pháp tuyến qua đế, gồm lực của HoldPad và lực va chạm của càng (lấy từ cảm biến contact), thay vì chỉ lực servo của HoldPad.
 - Hoặc train lại mạng niềm tin với ngẫu nhiên hoá độ lệch và tỉ lệ load cell, IMU sạch (không rung), và phần trước chạm lấy từ rollout Q1.
 
-## 14. Sửa theo review Codex `PIPE_D3_ros_review.md` (2026-11-20)
+## 14. Sửa theo review (2026-11-20)
 
 | Mục | Sửa |
 |---|---|
@@ -457,3 +457,57 @@ Replay đọc `node_ticks.jsonl`, `q2_samples.jsonl`, bản ghi diag do evaluato
 ```bash
 /home/sup/data/venvs/occwm/bin/python -m pytest -q perchpilot/ros/test_perch_dashboard.py
 ```
+
+## Node Rust
+
+`rs/perch_core` chứa nhận thức, máy pha, Q2 và suy luận f32. `rs/perch_node` dùng `r2r` để nối cùng các topic PX4 và ROS 2. Node chạy policy tất định ở 100 Hz, lấy mẫu C5 ở 200 Hz và giữ schema `/perchpilot/diag`, `node_ticks.jsonl` và `q2_samples.jsonl`. Huấn luyện và xuất checkpoint dùng Python.
+
+Build và xuất trọng số từ thư mục gốc repo.
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/ws_px4/install/setup.bash
+export LIBCLANG_PATH=/usr/lib/llvm-18/lib
+cargo build --manifest-path rs/Cargo.toml --release -p perch_node --features ros
+
+PY=/home/sup/data/venvs/occwm/bin/python
+RUN=/home/sup/data/perchpilot/runs/p2y_perc_s0
+BELIEF=/home/sup/data/perchpilot/runs/q2_belief_v7_full_s0
+"$PY" ros/export_weights.py policy "$RUN/policy.ts"
+"$PY" ros/export_weights.py belief "$BELIEF/belief.ts"
+```
+
+Bộ xuất nhận cả `best.pt` của hai mô hình. Mỗi bản xuất gồm `policy.rust.json` hoặc `belief.rust.json` và file `.bin` f32 little-endian. Header ghi shape, offset theo byte, metadata C1 hoặc C5 và SHA-256 của checkpoint nguồn. Khi dùng `--out DIR`, trỏ cờ `--run` hoặc `--q2-belief` của binary vào `DIR`. Launcher dùng đường dẫn C1 của evaluator, nên để bản xuất policy trong cùng thư mục với `policy.ts` khi chạy lô.
+
+Chạy thử node qua ROS 2 với cảnh tổng hợp.
+
+```bash
+ROS_DOMAIN_ID=94 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST \
+  rs/target/release/perch_node --policy-run "$RUN" --dry-run --duration 2
+```
+
+Người vận hành SITL có thể chọn `PERCH_NODE_IMPL=rust` khi gọi `scripts/run_sitl_eval.sh`. Launcher mặc định dùng Python. Dùng `PERCH_NODE_ARGS` để truyền các cờ bổ sung như `--verify-rule dthr --q2-belief $BELIEF --q2-tau 0.44 --q2-s 1.01 --q2-dmin 0`. Luật `fsm_b4e` cần ba ngưỡng qua `--q2-slip-off` theo thứ tự RELAX, PULL0.3, PULL0.6. Với D-thr dùng belief 13 kênh hoặc B4e, để `PERCH_SLIP_SENSOR=1`.
+
+Kiểm chứng ngoại tuyến bằng checkpoint và log hiện có.
+
+```bash
+CHECK=/tmp/perchpilot-rust-check
+"$PY" ros/dump_reference.py --policy "$RUN" --belief "$BELIEF" --out "$CHECK"
+cargo test --manifest-path rs/Cargo.toml --release
+PERCH_RUST_CHECK="$CHECK" cargo test --manifest-path rs/Cargo.toml \
+  --release -- --include-ignored --nocapture
+cargo run --manifest-path rs/Cargo.toml --release -p perch_core --bin perch_bench -- "$CHECK"
+```
+
+Các lệnh kiểm chứng lõi chạy được khi chưa source ROS.
+
+Kết quả đo (RTX 4060 Laptop, `p2y_perc_s0` + `q2_belief_v7_full_s0`):
+
+| Kiểm chứng | Kết quả |
+|---|---|
+| Policy, Rust so với PyTorch | lệch action lớn nhất 5,0e-6 (đầu vào ngẫu nhiên), 2,6e-6 (obs SITL) |
+| Belief net | lệch p_hold 8,3e-7, p_slip 1,5e-6 |
+| Replay 7 kịch bản (chu kỳ trọn, B4e ABORT, D-thr OFF, mất tiếp xúc, …) | pha và quyết định khớp 100%, lệch lệnh ≤ 1,1e-5 |
+| SITL 10 lượt, xe 1,5 m/s | chạm 10/10, trọn chu kỳ 9/10, false-safe 0/10 (lượt hỏng do harness hết giờ chờ EKF khi phục hồi) |
+| Thời gian suy luận p95 trong SITL | 0,11 ms (Python 0,62 ms); jitter vòng 100 Hz p95 0,07 ms (Python 3,1 ms) |
+
