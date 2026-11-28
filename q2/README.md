@@ -1,6 +1,6 @@
 # Q2 — xác nhận bám và quyết định tắt cánh trong sim GPU (P3, phần 1) — thiết kế v2
 
-Phần này hiện thực P3 trong `docs/PIPELINE_1_TUAN.md`, trừ phần dò lưới FSM B4 (Codex làm sau, dùng chung dataset và `sim/contact_phase.py`).
+Phần này mô tả xác nhận bám và quyết định tắt cánh trong mô phỏng. Thiết kế v2 để lại phần dò lưới FSM B4 cho lượt thử sau với cùng dataset và mã mô phỏng pha tiếp xúc.
 
 Quy ước nhãn kết quả: **RAN** = đã chạy thật, số liệu lấy từ JSON trong `results/`; **NOT RUN** = mới có lệnh hoặc job, chưa có số.
 
@@ -209,7 +209,7 @@ Trên val:
 3. **Vật liệu trơn ngoài miền huấn luyện** làm false-safe vượt 2% (mục 7.3).
 4. **Trạng thái chạm đang là mẫu tham số**, chưa lấy từ rollout Q1.
 5. **Các giả định mô hình:** đế cứng, không bập bênh, không đàn hồi; va chạm là xung mũ τ = 20 ms; m = 2 kg; FS load cell = 2·m·g.
-6. **FSM B4 (Codex) chưa có**, nên chưa so sánh được H2. Codex cần dùng lịch dò v2 và các điểm quyết định t = 0,15 / 0,40 / 0,65 / 0,90 s.
+6. **Thiết kế v2 chưa có đối chứng FSM B4**, nên chưa so sánh được H2 ở lượt thử này. Đối chứng dùng lịch dò v2 và các điểm quyết định t = 0,15 / 0,40 / 0,65 / 0,90 s.
 
 ## 9. Bản đầy đủ — NOT RUN (đã xếp hàng GPU, chạy sau P2)
 
@@ -324,4 +324,4 @@ V4 dùng đặc tả v1.1. False-safe chính là rơi sau MOTORS_OFF / số lư�
 
 Để tái lập v2/v3, dùng checkpoint tương ứng với `decide.py` hoặc `decide_v3.py`. `dataset.py --protocol legacy` sinh shard theo quy ước cũ.
 
-Lệnh CPU, dòng job GPU C4 và kết quả chạy nhỏ nằm trong [báo cáo Q2 v4](../../research/codex/PIPE_D3_q2_v4.md).
+Xem mục **Cách chạy** ở trên để tái lập các kiểm tra Q2 từ mã trong thư mục này.

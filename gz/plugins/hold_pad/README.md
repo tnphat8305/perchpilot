@@ -73,4 +73,4 @@ p4_logs=$(mktemp -d /tmp/perchpilot-holdpad.XXXXXX)
 python3 "$p4/test/run_headless.py" "$p4_logs"
 ```
 
-Test headless kiểm tra RAM trước mỗi lượt, dùng `GZ_PARTITION=perchpilot_codex` và khởi động `gz sim -s` với timeout 45 s. Box 2 kg rơi tự do tới tấm cố định 65°. Script dùng cùng SDF cho hai ca, gửi vật liệu qua `/perch/hold_params` và lệnh gắn trước khi chạy 6.500 bước. Ca mạnh dùng `mu=0,9`, `f_hold_n=58,86`. Ca yếu dùng `mu=0,2`, `f_hold_n=5,886`. Script chấm từ truth và pose, gồm bước dịch tại thời điểm gắn, độ trôi trong 5 s và diễn biến trượt rồi nhả ở mép tấm.
+Test headless kiểm tra RAM trước mỗi lượt, dùng `GZ_PARTITION=perchpilot_hold_pad_test` và khởi động `gz sim -s` với timeout 45 s. Box 2 kg rơi tự do tới tấm cố định 65°. Script dùng cùng SDF cho hai ca, gửi vật liệu qua `/perch/hold_params` và lệnh gắn trước khi chạy 6.500 bước. Ca mạnh dùng `mu=0,9`, `f_hold_n=58,86`. Ca yếu dùng `mu=0,2`, `f_hold_n=5,886`. Script chấm từ truth và pose, gồm bước dịch tại thời điểm gắn, độ trôi trong 5 s và diễn biến trượt rồi nhả ở mép tấm.

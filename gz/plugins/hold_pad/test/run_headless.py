@@ -148,7 +148,7 @@ def main():
     parser.add_argument("log_dir", type=Path, help="Thư mục trống để lưu log")
     args = parser.parse_args()
     plugin = Path(__file__).resolve().parents[1]
-    env = {**os.environ, "GZ_PARTITION": "perchpilot_codex"}
+    env = {**os.environ, "GZ_PARTITION": "perchpilot_hold_pad_test"}
     paths = [str(plugin / "build"), env.get("GZ_SIM_SYSTEM_PLUGIN_PATH", "")]
     env["GZ_SIM_SYSTEM_PLUGIN_PATH"] = os.pathsep.join(filter(None, paths))
     world = Path(__file__).with_name("hold_test.sdf").read_text()

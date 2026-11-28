@@ -69,7 +69,7 @@ def load_expanded(module, sd):
     Layout assumption (asserted by shapes): new obs = [old obs | extra obs], new critic input =
     [obs_new | priv_new] with priv_new = [old priv | extra priv]. Actor: old obs columns copied, extra
     columns zero. Critic first layer: obs block and priv block are copied to their OWN positions
-    (fixes the column shift reported in research/codex/PIPE_D1_review.md #5); everything new is zero.
+    so expanding the observation block preserves the privileged input columns. New columns are zero.
     RunningNorm stats: prefix copy. Returns the list of resized keys."""
     own = module.state_dict()
     obs_old = sd["norm.mean"].numel()

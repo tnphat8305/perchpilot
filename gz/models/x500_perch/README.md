@@ -48,4 +48,4 @@ u = clip((sqrt(max(thrust_N, 0.0) / (4 * 1.14400296e-5)) - 150.0) / 850.0, 0.0, 
 - `CA_ROTOR0_CT` đến `CA_ROTOR3_CT` là hệ số hiệu lực tương đối của bộ phân bổ PX4. Mã dùng `thrust = CT · axis` và `moment = CT · (position × axis − KM · axis)`. Với bốn rotor cùng tăng hệ số, phép chuẩn hoá ma trận trộn loại ảnh hưởng của hệ số chung. Giữ CT mặc định ban đầu. `CA_ROTOR*_KM` hiện là ±0,05 trong airframe 4001 và cũng giữ nguyên. Kiểm tra đáp ứng rate/yaw và bão hoà trong P5.
 - `SIM_GZ_EC_MIN1..4=150`, `SIM_GZ_EC_MAX1..4=1000` và `THR_MDL_FAC=0` là điều kiện của bảng. Lệnh rate lớn có thể khiến từng rotor chạy ở các `u` khác nhau và chạm giới hạn.
 
-Xem [báo cáo P5](../../../../research/codex/PIPE_D1_P5.md) để biết đường dẫn mã PX4 và kết quả đo headless.
+Các thay đổi dành cho PX4 nằm trong [px4_patches](../../../px4_patches/).
